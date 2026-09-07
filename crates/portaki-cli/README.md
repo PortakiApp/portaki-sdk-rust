@@ -72,7 +72,8 @@ PORTAKI_PUBLISH_VERSION=0.3.5 portaki publish --registry ghcr.io/portakiapp
 Image name: `ghcr.io/portakiapp/portaki-modules-<module-id>:<semver>`.
 
 `publish` announces the version to the registry after the push (needs `portaki login`).
-`--no-announce` skips it — the artifact then belongs to no catalogue.
+`--no-announce` skips it — the artifact then belongs to no catalogue. `--announce-only` announces
+a version already on GHCR without pushing anything, which is how an existing catalogue is adopted.
 
 Official modules: [`portaki-modules`](https://github.com/PortakiApp/portaki-modules).
 

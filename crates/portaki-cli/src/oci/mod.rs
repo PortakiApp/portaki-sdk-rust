@@ -89,6 +89,31 @@ pub async fn push_artifact(
     })
 }
 
+/// Résout le digest d'une version déjà poussée, sans rien envoyer.
+///
+/// Lecture seule : c'est ce qui permet d'annoncer au registre un catalogue déjà sur GHCR sans
+/// détenir de droit d'écriture, et sans réenvoyer des octets identiques.
+pub async fn resolve_pushed_artifact(module_root: &Path, registry: &str) -> Result<PushedArtifact> {
+    let coords = pack::read_source_coordinates(module_root)?;
+    let image_ref = pack::image_reference(registry, &coords)?;
+    let reference: Reference = image_ref
+        .parse()
+        .with_context(|| format!("invalid OCI reference: {image_ref}"))?;
+
+    // Lecture seule : l'anonyme suffit pour un dépôt public.
+    let auth = auth::resolve_read_auth(registry);
+    let digest = Client::default()
+        .fetch_manifest_digest(&reference, &auth)
+        .await
+        .with_context(|| format!("resolve {image_ref} on the OCI registry"))?;
+
+    Ok(PushedArtifact {
+        image_ref,
+        manifest_url: String::new(),
+        digest,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
