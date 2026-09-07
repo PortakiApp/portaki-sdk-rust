@@ -105,6 +105,19 @@ Image name: `ghcr.io/portakiapp/portaki-modules-<module-id>:<semver>` (dash, not
 
 `portaki publish --dry-run` validates the artifact without pushing.
 
+### The registry announcement
+
+Pushing to GHCR puts the bytes somewhere; it does not put the module in a catalogue. After the
+push, `publish` announces the version to the Portaki registry — module id, version, artifact ref
+and the digest read back from GHCR — which pulls the artifact by that digest and reads the
+manifest inside it. The body says *where to look*, never *what was published*.
+
+That announcement needs `portaki login`. Replaying a version that is already published is not an
+error: publications are immutable and keyed by digest, so a re-run of a CI job is a no-op.
+
+`--no-announce` pushes to GHCR only. The artifact then exists in no catalogue — useful to inspect
+a build, not to ship one.
+
 When both `portaki.module.json` and SDK emissions exist, publish pushes catalog + SDK layers
 (plus optional migrations / operations / i18n / wasm):
 
