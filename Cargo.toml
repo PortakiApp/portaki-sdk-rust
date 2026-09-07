@@ -17,7 +17,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "2.1.1"
+version = "2.2.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/PortakiApp/portaki-sdk"
@@ -26,10 +26,10 @@ authors = ["Syntax Labs <support@syntax-labs.fr>"]
 rust-version = "1.75"
 
 [workspace.dependencies]
-portaki-sdk = { path = "crates/portaki-sdk", version = "2.1.1" }
-portaki-sdk-macros = { path = "crates/portaki-sdk-macros", version = "2.1.1" }
-portaki-connectors = { path = "crates/portaki-connectors", version = "2.1.1" }
-portaki-test-utils = { path = "crates/portaki-test-utils", version = "2.1.1" }
+portaki-sdk = { path = "crates/portaki-sdk", version = "2.2.0" }
+portaki-sdk-macros = { path = "crates/portaki-sdk-macros", version = "2.2.0" }
+portaki-connectors = { path = "crates/portaki-connectors", version = "2.2.0" }
+portaki-test-utils = { path = "crates/portaki-test-utils", version = "2.2.0" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

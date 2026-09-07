@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/PortakiApp/portaki-sdk/compare/v2.1.1...v2.2.0) (2026-09-07)
+
+
+### Features
+
+* **cli:** annoncer la publication au registre ([a7715d8](https://github.com/PortakiApp/portaki-sdk/commit/a7715d80783b223aacef99bdd9f28621c2c6cb0b))
+* **cli:** annoncer une version deja sur GHCR ([90cd7b8](https://github.com/PortakiApp/portaki-sdk/commit/90cd7b8d2598fee4f8750fd6be6511b9bff071d5))
+* **cli:** portaki dev builds, deploys and shows the run ([ec4cdce](https://github.com/PortakiApp/portaki-sdk/commit/ec4cdce2de0a71e1870ee9d44e2ebdd93c140eaa))
+* **cli:** portaki login stores the token in the system keychain ([28c83aa](https://github.com/PortakiApp/portaki-sdk/commit/28c83aaeefa4f145bbdf599828ecf3d204062344))
+* **cli:** tamponner la version SDK liee au build ([08ec4bd](https://github.com/PortakiApp/portaki-sdk/commit/08ec4bd95ca8454ef6df99594a742b717fba2747))
+* **connectors:** add OpenAgenda nearby events client ([ab53d1f](https://github.com/PortakiApp/portaki-sdk/commit/ab53d1f9c2a1f66170905c86a012f1fd47fcd123))
+* **context:** expose stay booking_channel to modules ([3ac7d48](https://github.com/PortakiApp/portaki-sdk/commit/3ac7d4816740a87da607eaec0dbcd38f42c3fc78))
+* **contracts:** add booking channel vocabulary ([6e84543](https://github.com/PortakiApp/portaki-sdk/commit/6e845434dc761e912bb0ba747f05eaa245495da2))
+* **contracts:** add shared StayImportRow shape ([c695a53](https://github.com/PortakiApp/portaki-sdk/commit/c695a539749830d7785e9328f6d7ac1bfe86c4f8))
+* **host:** add host::notify + core.host.notifications capability ([a3b8715](https://github.com/PortakiApp/portaki-sdk/commit/a3b87157cc14acde7553892b2049589f9045743e))
+* **schema:** add maturity and sortOrder fields ([411e626](https://github.com/PortakiApp/portaki-sdk/commit/411e62640a08cb2c6b2567ffed41b2bfbaa7eb87))
+* **schema:** declare module permissions, rename SDK field ([f588b92](https://github.com/PortakiApp/portaki-sdk/commit/f588b92010e005dc2edf527ae8cc4c102cfee82b))
+* **sdui:** add optional blurHash to Image ([5c4ce59](https://github.com/PortakiApp/portaki-sdk/commit/5c4ce598137e840390413ab710c95cec36717b0b))
+
+
+### Bug Fixes
+
+* **cli:** read the platform envelope, renew on 401 ([f00bbcc](https://github.com/PortakiApp/portaki-sdk/commit/f00bbcc334c196cf58cc78a3dbb7cdc54ae8dd20))
+* **deps:** update rust crate extism-pdk to 1.4.1 ([440ca31](https://github.com/PortakiApp/portaki-sdk/commit/440ca31322af04242dc0fe13e2bf290b7cb9004e))
+
 ## [Unreleased]
 
 ### Features
