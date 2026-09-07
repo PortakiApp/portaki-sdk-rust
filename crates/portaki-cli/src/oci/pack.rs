@@ -88,6 +88,22 @@ pub fn read_module_coordinates(
     })
 }
 
+/// Lit id/version dans `portaki.module.json`, sans passer par un build.
+///
+/// C'est ce qui permet d'annoncer au registre une version déjà présente sur GHCR : rien à
+/// recompiler, rien à repousser, donc aucun jeton d'écriture nécessaire.
+pub fn read_source_coordinates(module_root: &Path) -> Result<ModuleCoordinates> {
+    let manifest_path = module_root.join("portaki.module.json");
+    let raw = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("read {}", manifest_path.display()))?;
+    let manifest: ArtifactManifest =
+        serde_json::from_str(&raw).context("parse portaki.module.json")?;
+    Ok(ModuleCoordinates {
+        id: manifest.id,
+        version: manifest.version,
+    })
+}
+
 /// Builds the OCI image reference `registry/portaki-modules-{module_id}:version`.
 pub fn image_reference(registry: &str, coords: &ModuleCoordinates) -> Result<String> {
     let registry = registry.trim_end_matches('/');
@@ -222,6 +238,23 @@ fn find_wasm_artifact(module_root: &Path, module_id: &str) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+    /// Reprendre un catalogue déjà publié suppose de lire id/version sans build : le
+    /// publish-manifest n'existe pas tant que rien n'a été compilé.
+    #[test]
+    fn source_coordinates_are_read_without_a_build() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("portaki.module.json"),
+            r#"{"id":"weather","version":"0.3.24"}"#,
+        )
+        .unwrap();
+
+        let coords = read_source_coordinates(dir.path()).unwrap();
+
+        assert_eq!(coords.id, "weather");
+        assert_eq!(coords.version, "0.3.24");
+    }
+
     use super::*;
     use std::fs;
     use tempfile::tempdir;

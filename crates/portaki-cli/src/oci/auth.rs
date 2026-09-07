@@ -21,6 +21,15 @@ pub fn resolve_registry_auth(registry: &str) -> Result<RegistryAuth> {
     );
 }
 
+/// Comme [`resolve_registry_auth`], mais retombe sur l'anonyme au lieu d'échouer.
+///
+/// Réservé aux chemins en **lecture seule**. Un dépôt public se lit sans identifiants, et
+/// exiger un jeton d'écriture pour résoudre un digest déjà publié interdirait la reprise d'un
+/// catalogue à qui n'a pas le droit d'y pousser.
+pub fn resolve_read_auth(registry: &str) -> RegistryAuth {
+    resolve_registry_auth(registry).unwrap_or(RegistryAuth::Anonymous)
+}
+
 /// OCI registry username. Prefers `OCI_USERNAME`; falls back to the legacy
 /// `PORTAKI_OCI_USERNAME` for backward compatibility.
 fn oci_username() -> Result<String, std::env::VarError> {

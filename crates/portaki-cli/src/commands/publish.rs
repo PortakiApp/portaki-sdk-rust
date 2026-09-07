@@ -44,6 +44,9 @@ pub struct PublishArgs {
     /// Pousser sur GHCR sans annoncer au registre — l'artefact n'entrera alors dans aucun catalogue.
     #[arg(long)]
     pub no_announce: bool,
+    /// Annoncer une version déjà sur GHCR, sans rien compiler ni repousser.
+    #[arg(long, conflicts_with_all = ["no_announce", "dry_run", "skip_build"])]
+    pub announce_only: bool,
 }
 
 /// Runs `portaki publish`.
@@ -53,6 +56,16 @@ pub async fn run(args: PublishArgs) -> Result<()> {
         .artifact_dir
         .clone()
         .unwrap_or_else(|| module_root.join("target/portaki"));
+
+    // Reprise d'un catalogue déjà sur GHCR : on lit le digest de la version publiée et on
+    // l'annonce. Rien n'est recompilé ni renvoyé, donc aucun droit d'écriture nécessaire — et
+    // aucun risque d'écraser un artefact par un build local qui aurait dérivé.
+    if args.announce_only {
+        let coords = oci::pack::read_source_coordinates(&module_root)?;
+        let pushed = oci::resolve_pushed_artifact(&module_root, &args.registry).await?;
+        println!("Found {} ({})", pushed.image_ref, pushed.digest);
+        return announce(&args, &coords, &pushed).await;
+    }
 
     if !args.skip_build {
         build::run(BuildArgs {
