@@ -55,7 +55,7 @@ rustup target add wasm32-unknown-unknown
 | `portaki build` | Compile Wasm + merge emissions → `manifest.json` |
 | `portaki lint` | Validate capabilities, connectors, i18n keys |
 | `portaki test` | Forward to `cargo test` in the module crate |
-| `portaki publish` | Push OCI artifact to a container registry |
+| `portaki publish` | Push the OCI artifact, then announce it to the registry |
 | `portaki catalog` | Dump the SDUI primitive catalog |
 | `portaki inspect` | Inspect a published OCI artifact |
 | `portaki docs` / `dev` | Docs helper / local mock gateway (evolves with the SDK) |
@@ -70,6 +70,9 @@ PORTAKI_PUBLISH_VERSION=0.3.5 portaki publish --registry ghcr.io/portakiapp
 ```
 
 Image name: `ghcr.io/portakiapp/portaki-modules-<module-id>:<semver>`.
+
+`publish` announces the version to the registry after the push (needs `portaki login`).
+`--no-announce` skips it — the artifact then belongs to no catalogue.
 
 Official modules: [`portaki-modules`](https://github.com/PortakiApp/portaki-modules).
 
