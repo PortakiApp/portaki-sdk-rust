@@ -54,22 +54,79 @@ pub fn assemble_publish_manifest(module_root: &Path, artifact_dir: &Path) -> Res
     let catalog_path = module_root.join("portaki.module.json");
     let sdk_path = artifact_dir.join("manifest.json");
 
-    if catalog_path.exists() {
-        fs::copy(&catalog_path, &dest)
-            .with_context(|| format!("copy {} -> {}", catalog_path.display(), dest.display()))?;
-        return Ok(dest);
-    }
+    let source = if catalog_path.exists() {
+        catalog_path
+    } else if sdk_path.exists() {
+        sdk_path
+    } else {
+        anyhow::bail!(
+            "missing portaki.module.json or {} — run portaki build first",
+            sdk_path.display()
+        );
+    };
 
-    if sdk_path.exists() {
-        fs::copy(&sdk_path, &dest)
-            .with_context(|| format!("copy {} -> {}", sdk_path.display(), dest.display()))?;
-        return Ok(dest);
-    }
+    let raw = fs::read_to_string(&source).with_context(|| format!("read {}", source.display()))?;
+    let stamped = stamp_sdk_version(&raw, resolved_sdk_version(module_root)?)?;
+    fs::write(&dest, stamped).with_context(|| format!("write {}", dest.display()))?;
+    Ok(dest)
+}
 
-    anyhow::bail!(
-        "missing portaki.module.json or {} — run portaki build first",
-        sdk_path.display()
-    );
+/// Version de `portaki-sdk` <strong>réellement liée</strong>, lue dans le graphe résolu par cargo.
+///
+/// Pas celle déclarée : les modules dépendent du SDK par `workspace = true`, dont la contrainte
+/// vaut `*`. Ce qui compte pour choisir un bundle de contrats est ce contre quoi le binaire a été
+/// compilé, pas ce que quelqu'un a écrit à côté.
+///
+/// Rend `None` quand cargo ne répond pas ou que le SDK n'est pas dans le graphe — un module qui
+/// n'en dépend pas ne se voit pas inventer une version.
+fn resolved_sdk_version(module_root: &Path) -> Result<Option<String>> {
+    let output = std::process::Command::new("cargo")
+        .args(["metadata", "--format-version", "1"])
+        .current_dir(module_root)
+        .output();
+    let output = match output {
+        Ok(o) if o.status.success() => o,
+        _ => return Ok(None),
+    };
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("parse cargo metadata")?;
+    let found = metadata
+        .get("packages")
+        .and_then(|p| p.as_array())
+        .into_iter()
+        .flatten()
+        .find(|p| p.get("name").and_then(|n| n.as_str()) == Some("portaki-sdk"))
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    Ok(found)
+}
+
+/// Inscrit `requiresModuleSdk` dans le manifeste, ou refuse si l'auteur en annonce un autre.
+///
+/// Le champ existe au schéma depuis longtemps et <strong>aucun module ne le remplissait</strong> :
+/// la plateforme n'avait donc rien pour choisir le bon jeu de contrats. L'inscrire au build le
+/// rend exact par construction plutôt que par discipline.
+pub fn stamp_sdk_version(raw: &str, resolved: Option<String>) -> Result<String> {
+    let Some(resolved) = resolved else {
+        return Ok(raw.to_string());
+    };
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(raw).context("parse module manifest")?;
+    match manifest.get("requiresModuleSdk").and_then(|v| v.as_str()) {
+        Some(declared) if declared != resolved => anyhow::bail!(
+            "portaki.module.json declares requiresModuleSdk {declared} but the build linked \
+             portaki-sdk {resolved} — drop the field and let the build stamp it"
+        ),
+        _ => {}
+    }
+    if let Some(object) = manifest.as_object_mut() {
+        object.insert(
+            "requiresModuleSdk".to_string(),
+            serde_json::Value::String(resolved),
+        );
+    }
+    serde_json::to_string_pretty(&manifest).context("serialise module manifest")
 }
 
 /// Reads module id/version from `publish-manifest.json` under `artifact_dir`.
@@ -240,6 +297,50 @@ fn find_wasm_artifact(module_root: &Path, module_id: &str) -> Result<PathBuf> {
 mod tests {
     /// Reprendre un catalogue déjà publié suppose de lire id/version sans build : le
     /// publish-manifest n'existe pas tant que rien n'a été compilé.
+    #[test]
+    fn the_linked_sdk_version_is_stamped_into_the_manifest() {
+        let stamped = stamp_sdk_version(
+            r#"{"id":"weather","version":"0.3.24"}"#,
+            Some("2.1.1".into()),
+        )
+        .unwrap();
+
+        let parsed: serde_json::Value = serde_json::from_str(&stamped).unwrap();
+        assert_eq!(parsed["requiresModuleSdk"], "2.1.1");
+        assert_eq!(parsed["id"], "weather");
+    }
+
+    /// Un manifeste qui annonce une autre version ment sur ce qui a été compilé.
+    #[test]
+    fn a_declared_version_that_disagrees_is_refused() {
+        let err = stamp_sdk_version(
+            r#"{"id":"weather","version":"0.3.24","requiresModuleSdk":"1.0.0"}"#,
+            Some("2.1.1".into()),
+        )
+        .unwrap_err();
+
+        assert!(err.to_string().contains("1.0.0"));
+        assert!(err.to_string().contains("2.1.1"));
+    }
+
+    /// Déclarée et liée d'accord : rien à signaler.
+    #[test]
+    fn a_declared_version_that_agrees_passes() {
+        stamp_sdk_version(
+            r#"{"id":"weather","requiresModuleSdk":"2.1.1"}"#,
+            Some("2.1.1".into()),
+        )
+        .unwrap();
+    }
+
+    /// Un module qui ne dépend pas du SDK ne se voit pas inventer une version.
+    #[test]
+    fn without_a_resolved_sdk_the_manifest_is_untouched() {
+        let raw = r#"{"id":"weather","version":"0.3.24"}"#;
+
+        assert_eq!(stamp_sdk_version(raw, None).unwrap(), raw);
+    }
+
     #[test]
     fn source_coordinates_are_read_without_a_build() {
         let dir = tempfile::tempdir().unwrap();

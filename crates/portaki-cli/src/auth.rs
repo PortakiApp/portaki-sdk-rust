@@ -120,12 +120,26 @@ mod tests {
         assert_eq!(access_token().unwrap(), "injected");
 
         // Une variable vide n'est pas un jeton — sinon on part avec une chaîne blanche.
+        //
+        // On n'exige pas d'échec : sur une machine où `portaki login` est passé, le trousseau
+        // répond, et c'est le comportement voulu. Ce test affirmait le contraire et devenait
+        // rouge dès la première connexion — un test dont le résultat dépend de l'historique de
+        // la machine ne garde rien. L'invariant réel est qu'une variable blanche ne devient
+        // jamais un jeton.
         std::env::set_var("PORTAKI_DEV_TOKEN", "   ");
-        let failure = access_token().unwrap_err().to_string();
-        assert!(
-            failure.contains("portaki login") || failure.contains("keychain"),
-            "{failure}"
-        );
+        match access_token() {
+            Ok(from_keychain) => assert!(
+                !from_keychain.trim().is_empty(),
+                "une variable blanche ne doit pas devenir un jeton"
+            ),
+            Err(failure) => {
+                let message = failure.to_string();
+                assert!(
+                    message.contains("portaki login") || message.contains("keychain"),
+                    "{message}"
+                );
+            }
+        }
 
         std::env::remove_var("PORTAKI_DEV_TOKEN");
     }
