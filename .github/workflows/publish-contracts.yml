@@ -1,0 +1,81 @@
+name: Publish contracts
+
+# Pousse les contrats de la version taguée vers le registre Portaki.
+#
+# Sans eux, la plateforme dev ne peut valider ni un manifeste ni un arbre SDUI contre la version
+# qu'un module cible : les deux contrôles de conformité correspondants restent bloqués.
+#
+# Auth : jeton OIDC de GitHub Actions, comme la publication crates.io juste à côté. Aucun secret
+# longue durée — le registre vérifie l'émetteur, l'audience, et que `repository_id` est bien
+# celui de ce dépôt.
+#
+# Séparé de `publish-crates.yml` à dessein : un registre indisponible ne doit pas empêcher une
+# publication crates.io, ni l'inverse.
+on:
+  push:
+    tags:
+      - "v*"
+  # Rejouer après une indisponibilité du registre, sans retaguer. Republier à l'identique est
+  # sans effet : les contrats d'une version ne se réécrivent pas.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à publier (défaut : celle du Cargo.toml)"
+        required: false
+
+concurrency:
+  group: publish-contracts
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Assemble the bundle
+        id: bundle
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          node scripts/build-contracts-bundle.mjs ${version:+"$version"} > bundle.json
+          echo "version=$(node -e 'process.stdout.write(require("./bundle.json").version)')" >> "$GITHUB_OUTPUT"
+          echo "Bundle: $(wc -c < bundle.json) octets"
+
+      - name: Publish to the registry
+        env:
+          REGISTRY_URL: ${{ vars.PORTAKI_REGISTRY_URL || 'https://api.portaki.app' }}
+          OIDC_AUDIENCE: ${{ vars.PORTAKI_REGISTRY_OIDC_AUDIENCE || 'https://api.portaki.app/registry' }}
+          VERSION: ${{ steps.bundle.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # L'audience est demandée par l'appelant : elle lie le jeton à ce service, elle ne
+          # prouve rien sur l'identité. C'est `repository_id` que le registre autorise.
+          token=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$OIDC_AUDIENCE" \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).value))')
+
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            -X POST "${REGISTRY_URL%/}/registry/v1/sdk-releases" \
+            -H "Authorization: Bearer $token" \
+            -H 'Content-Type: application/json' \
+            --data @bundle.json)
+
+          echo "HTTP $status"
+          cat response.json
+
+          case "$status" in
+            201) echo "::notice::contrats $VERSION publiés" ;;
+            # Déjà publiés : le cas d'un rejeu, pas une erreur. Les contrats sont immuables.
+            200) echo "::notice::contrats $VERSION déjà au registre" ;;
+            *)   echo "::error::le registre a refusé les contrats ($status)"; exit 1 ;;
+          esac
