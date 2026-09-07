@@ -52,7 +52,7 @@ rustup target add wasm32-unknown-unknown
 | Command | Contract |
 |---------|----------|
 | `portaki init` | Scaffold a module from a template |
-| `portaki build` | Compile Wasm + merge emissions → `manifest.json` |
+| `portaki build` | Compile Wasm + merge emissions → `manifest.json`, tamponne la version SDK liée |
 | `portaki lint` | Validate capabilities, connectors, i18n keys |
 | `portaki test` | Forward to `cargo test` in the module crate |
 | `portaki publish` | Push the OCI artifact, then announce it to the registry |
